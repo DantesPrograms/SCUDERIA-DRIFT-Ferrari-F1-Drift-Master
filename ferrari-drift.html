@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SCUDERIA DRIFT — Ferrari F1 Drift Master</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#000; overflow:hidden; font-family:'Orbitron',monospace; }
+#gameCanvas { display:block; cursor:none; }
+
+#hud {
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  pointer-events:none;
+}
+
+/* Score display */
+#scoreWrap {
+  position:fixed; top:20px; left:50%; transform:translateX(-50%);
+  text-align:center;
+}
+#driftLabel {
+  font-family:'Rajdhani',sans-serif; font-weight:300; font-size:11px;
+  color:#ff3300; letter-spacing:6px; text-transform:uppercase;
+}
+#driftScore {
+  font-size:72px; font-weight:900; color:#fff;
+  text-shadow:0 0 30px #ff3300, 0 0 60px #ff330066;
+  line-height:1; transition:color 0.1s;
+}
+#comboWrap {
+  font-size:13px; color:#ff9900;
+  font-family:'Rajdhani',sans-serif; letter-spacing:3px;
+}
+#bestScore {
+  font-size:11px; color:#666; letter-spacing:2px;
+  font-family:'Rajdhani',sans-serif;
+}
+
+/* Drift angle meter */
+#angleWrap {
+  position:fixed; top:20px; right:220px;
+  text-align:center;
+}
+#angleLabel { font-size:9px; color:#666; letter-spacing:3px; }
+#angleDeg { font-size:28px; color:#ff3300; font-weight:700; }
+
+/* Top stats bar */
+#statsBar {
+  position:fixed; top:0; left:0; width:100%;
+  background:linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+  height:100px;
+}
+
+/* Bottom HUD */
+#bottomHud {
+  position:fixed; bottom:0; left:0; width:100%;
+  background:linear-gradient(to top, rgba(0,0,0,0.85), transparent);
+  height:140px;
+  display:flex; align-items:flex-end; justify-content:space-between;
+  padding:0 30px 20px;
+}
+
+/* Speedometer */
+#speedWrap { text-align:center; }
+#speedNum { font-size:52px; font-weight:900; color:#fff; line-height:1; }
+#speedUnit { font-size:10px; color:#666; letter-spacing:3px; }
+
+/* Gear */
+#gearWrap {
+  text-align:center;
+}
+#gearLabel { font-size:9px; color:#666; letter-spacing:3px; }
+#gearNum { font-size:64px; font-weight:900; color:#ff3300;
+  text-shadow:0 0 20px #ff3300; line-height:1; }
+
+/* Nitro bar */
+#nitroWrap { width:200px; }
+#nitroLabel { font-size:9px; color:#0099ff; letter-spacing:4px; margin-bottom:4px; }
+#nitroBar { height:8px; background:#111; border:1px solid #0099ff44;
+  border-radius:4px; overflow:hidden; }
+#nitroFill { height:100%; background:linear-gradient(to right,#0033ff,#00ffff);
+  width:100%; transition:width 0.1s; box-shadow:0 0 8px #00ffff; }
+
+/* Turbo meter */
+#turboWrap { width:200px; }
+#turboLabel { font-size:9px; color:#ff9900; letter-spacing:4px; margin-bottom:4px; }
+#turboBar { height:8px; background:#111; border:1px solid #ff990044;
+  border-radius:4px; overflow:hidden; }
+#turboFill { height:100%; background:linear-gradient(to right,#ff3300,#ffcc00);
+  width:0%; transition:width 0.08s; box-shadow:0 0 8px #ff9900; }
+
+/* RPM bar */
+#rpmWrap { width:250px; text-align:center; }
+#rpmLabel { font-size:9px; color:#666; letter-spacing:3px; margin-bottom:4px; }
+#rpmBarWrap { height:12px; background:#111; border:1px solid #333;
+  border-radius:2px; overflow:hidden; position:relative; }
+#rpmFill { height:100%; width:0%;
+  background:linear-gradient(to right,#00ff44,#ffcc00,#ff3300);
+  transition:width 0.05s; }
+#rpmRedline { position:absolute; right:0; top:0; width:20%; height:100%;
+  background:#ff330033; }
+
+/* Lap info */
+#lapWrap { text-align:center; }
+#lapLabel { font-size:9px; color:#666; letter-spacing:3px; }
+#lapTime { font-size:28px; color:#fff; font-weight:700; }
+#lapBest { font-size:11px; color:#00ff44; letter-spacing:2px;
+  font-family:'Rajdhani',sans-serif; }
+
+/* Mini-map */
+#minimap {
+  position:fixed; bottom:160px; right:20px;
+  width:140px; height:140px;
+  border:1px solid #ff330044; border-radius:4px;
+  background:rgba(0,0,0,0.7);
+  overflow:hidden;
+}
+#minimap canvas { display:block; }
+
+/* Controls overlay */
+#controls {
+  position:fixed; bottom:160px; left:20px;
+  font-family:'Rajdhani',sans-serif; font-size:12px;
+  color:#444; line-height:1.8;
+}
+#controls span { color:#ff3300; }
+
+/* Notifications */
+#notify {
+  position:fixed; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  text-align:center; pointer-events:none;
+  opacity:0; transition:opacity 0.3s;
+}
+#notifyText {
+  font-size:36px; font-weight:900;
+  color:#ffcc00; text-shadow:0 0 30px #ff9900;
+}
+#notifySub { font-size:14px; color:#ff9900; letter-spacing:4px;
+  font-family:'Rajdhani',sans-serif; }
+
+/* G-force indicator */
+#gforceWrap {
+  position:fixed; left:20px; top:50%; transform:translateY(-50%);
+  width:60px; height:60px;
+}
+#gforceLabel { font-size:8px; color:#666; letter-spacing:2px; text-align:center; }
+
+/* Tire heat */
+#tireWrap {
+  position:fixed; right:175px; bottom:160px;
+  display:grid; grid-template-columns:1fr 1fr; gap:4px;
+  width:60px;
+}
+.tire-indicator {
+  width:28px; height:18px; border-radius:3px;
+  background:#222; border:1px solid #333;
+  transition:background 0.3s;
+}
+
+/* Drift zone alert */
+#zoneAlert {
+  position:fixed; top:130px; left:50%; transform:translateX(-50%);
+  font-family:'Rajdhani',sans-serif; font-size:13px;
+  color:#ff9900; letter-spacing:4px;
+  opacity:0; transition:opacity 0.3s;
+}
+
+/* Session stats */
+#sessionStats {
+  position:fixed; top:110px; right:20px;
+  font-family:'Rajdhani',sans-serif; font-size:11px;
+  color:#444; line-height:1.7; text-align:right;
+}
+#sessionStats b { color:#ff3300; }
+
+/* Damage indicator */
+#damageWrap {
+  position:fixed; top:110px; left:20px;
+}
+#damageLabel { font-size:9px; color:#666; letter-spacing:3px; margin-bottom:4px; }
+#damageBar { width:120px; height:6px; background:#111; border:1px solid #33000088;
+  border-radius:3px; overflow:hidden; }
+#damageFill { height:100%; width:0%;
+  background:linear-gradient(to right,#00ff44,#ff3300);
+  transition:width 0.3s; }
+
+/* Combo flash */
+#comboFlash {
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  background:transparent; pointer-events:none;
+  transition:background 0.1s;
+}
+
+/* Loading / start screen */
+#startScreen {
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  background:#000; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; z-index:100;
+}
+#startScreen h1 {
+  font-size:80px; font-weight:900; color:#CC0000;
+  text-shadow:0 0 40px #ff3300, 0 0 80px #ff330044;
+  letter-spacing:4px; line-height:1;
+}
+#startScreen h2 {
+  font-size:16px; color:#666; letter-spacing:12px;
+  font-family:'Rajdhani',sans-serif; margin-top:8px;
+}
+#startScreen .start-btn {
+  margin-top:50px; padding:14px 50px;
+  border:1px solid #CC0000; background:transparent;
+  color:#CC0000; font-family:'Orbitron',monospace;
+  font-size:14px; letter-spacing:4px; cursor:pointer;
+  pointer-events:all; transition:all 0.3s;
+}
+#startScreen .start-btn:hover {
+  background:#CC0000; color:#fff;
+  box-shadow:0 0 30px #ff3300;
+}
+.key-grid { display:grid; grid-template-columns:repeat(3,40px); gap:4px;
+  margin:30px auto 0; width:fit-content; }
+.key {
+  width:40px; height:36px; border:1px solid #333;
+  background:#111; color:#999; font-size:11px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:4px; font-family:'Orbitron',monospace;
+}
+.key.active { border-color:#CC0000; color:#CC0000; }
+.start-info { color:#555; font-family:'Rajdhani',sans-serif;
+  font-size:13px; letter-spacing:2px; margin-top:20px; }
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+.blink { animation:pulse 1s infinite; }
+</style>
+</head>
+<body>
+
+<!-- Start Screen -->
+<div id="startScreen">
+  <h1>SCUDERIA</h1>
+  <h2>F1 DRIFT MASTER</h2>
+  <div style="margin-top:30px; display:flex; gap:60px; font-family:'Rajdhani',sans-serif; font-size:12px; color:#555; letter-spacing:2px;">
+    <div style="text-align:center">
+      <div style="color:#ff3300; font-size:11px; letter-spacing:4px; margin-bottom:8px;">DRIVE</div>
+      <div>WASD / ARROWS</div>
+    </div>
+    <div style="text-align:center">
+      <div style="color:#ff3300; font-size:11px; letter-spacing:4px; margin-bottom:8px;">DRIFT</div>
+      <div>SPACEBAR</div>
+    </div>
+    <div style="text-align:center">
+      <div style="color:#0099ff; font-size:11px; letter-spacing:4px; margin-bottom:8px;">NITRO</div>
+      <div>SHIFT / N</div>
+    </div>
+    <div style="text-align:center">
+      <div style="color:#ff9900; font-size:11px; letter-spacing:4px; margin-bottom:8px;">BRAKE</div>
+      <div>S / DOWN</div>
+    </div>
+  </div>
+  <button class="start-btn blink" onclick="startGame()">PRESS TO RACE</button>
+  <div class="start-info" style="margin-top:40px;">Collect BLUE orbs for Nitro · Enter RED zones for 2× multiplier</div>
+  <div class="start-info">Drift longer for COMBO bonuses · Avoid walls or take damage</div>
+</div>
+
+<!-- Main Canvas -->
+<canvas id="gameCanvas"></canvas>
+
+<!-- Combo flash overlay -->
+<div id="comboFlash"></div>
+
+<!-- Notification -->
+<div id="notify">
+  <div id="notifyText"></div>
+  <div id="notifySub"></div>
+</div>
+
+<!-- Zone alert -->
+<div id="zoneAlert">⬡ DRIFT ZONE ACTIVE ⬡</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="statsBar"></div>
+
+  <!-- Score center top -->
+  <div id="scoreWrap">
+    <div id="driftLabel">DRIFT POINTS</div>
+    <div id="driftScore">0</div>
+    <div id="comboWrap">
+      <span id="comboX">×1</span> COMBO — SESSION: <span id="sessionScore">0</span>
+    </div>
+    <div id="bestScore">BEST RUN: <span id="bestRun">0</span></div>
+  </div>
+
+  <!-- Drift angle -->
+  <div id="angleWrap">
+    <div id="angleLabel">DRIFT ANGLE</div>
+    <div id="angleDeg">0°</div>
+  </div>
+
+  <!-- G-force -->
+  <div id="gforceWrap">
+    <canvas id="gforceCanvas" width="60" height="60"></canvas>
+    <div id="gforceLabel">G-FORCE</div>
+  </div>
+
+  <!-- Tire heat -->
+  <div id="tireWrap">
+    <div class="tire-indicator" id="tfl"></div>
+    <div class="tire-indicator" id="tfr"></div>
+    <div class="tire-indicator" id="trl"></div>
+    <div class="tire-indicator" id="trr"></div>
+  </div>
+
+  <!-- Damage -->
+  <div id="damageWrap">
+    <div id="damageLabel">CHASSIS</div>
+    <div id="damageBar"><div id="damageFill"></div></div>
+  </div>
+
+  <!-- Session stats -->
+  <div id="sessionStats">
+    <div>TOTAL DRIFTS: <b id="totalDrifts">0</b></div>
+    <div>MAX SPEED: <b id="maxSpeedStat">0</b> KMH</div>
+    <div>BEST COMBO: <b id="bestCombo">×1</b></div>
+    <div>POWERUPS: <b id="powerupsCount">0</b></div>
+  </div>
+
+  <!-- Bottom HUD -->
+  <div id="bottomHud">
+    <!-- Left: Nitro & Turbo -->
+    <div style="display:flex;flex-direction:column;gap:10px;width:220px;justify-content:flex-end">
+      <div id="nitroWrap">
+        <div id="nitroLabel">⚡ NITRO</div>
+        <div id="nitroBar"><div id="nitroFill"></div></div>
+      </div>
+      <div id="turboWrap">
+        <div id="turboLabel">🔥 TURBO BUILD</div>
+        <div id="turboBar"><div id="turboFill"></div></div>
+      </div>
+    </div>
+
+    <!-- Center: Speed + Gear + RPM -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+      <div id="rpmWrap">
+        <div id="rpmLabel">RPM</div>
+        <div id="rpmBarWrap">
+          <div id="rpmFill"></div>
+          <div id="rpmRedline"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:30px">
+        <div id="speedWrap">
+          <div id="speedNum">0</div>
+          <div id="speedUnit">KMH</div>
+        </div>
+        <div id="gearWrap">
+          <div id="gearLabel">GEAR</div>
+          <div id="gearNum">N</div>
+        </div>
+        <div id="lapWrap">
+          <div id="lapLabel">LAP TIME</div>
+          <div id="lapTime">0:00.0</div>
+          <div id="lapBest">BEST —</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Controls -->
+    <div id="controls" style="position:static;color:#333">
+      <div><span>W/↑</span> Throttle &nbsp; <span>S/↓</span> Brake</div>
+      <div><span>A/D</span> Steer &nbsp; <span>SPACE</span> Drift</div>
+      <div><span>SHIFT/N</span> Nitro &nbsp; <span>R</span> Reset</div>
+    </div>
+  </div>
+
+  <!-- Mini map -->
+  <div id="minimap">
+    <canvas id="minimapCanvas" width="140" height="140"></canvas>
+  </div>
+</div>
+
+<script>
+// ================================================================
+//  FERRARI F1 DRIFT MASTER — Full Game Engine
+// ================================================================
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Resize canvas
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ================================================================
+//  CONSTANTS
+// ================================================================
+const WORLD_W = 4000, WORLD_H = 4000;
+const WALL_T = 50;
+const MAX_SPEED = 900;
+const ACCEL = 480;
+const BRAKE = 700;
+const TURN_SPEED = 2.8;
+const LAT_FRICTION_GRIP = 0.88;  // high grip (more friction applied each frame)
+const LAT_FRICTION_DRIFT = 0.975; // low friction = more slide
+const LONG_FRICTION = 0.985;
+const NITRO_BOOST = 1.7;
+const NITRO_MAX = 100;
+const NITRO_DRAIN = 35;  // per second
+const NITRO_REGEN = 6;   // per second (slow regen)
+const DAMAGE_MAX = 100;
+const KMH = 3.6;         // pixel/s → km/h conversion factor
+
+// ================================================================
+//  GAME STATE
+// ================================================================
+let gameRunning = false;
+let lastTime = 0;
+
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space') e.preventDefault();
+  keys[e.code] = true;
+  keys[e.key] = true;
+});
+window.addEventListener('keyup', e => {
+  keys[e.code] = false;
+  keys[e.key] = false;
+});
+
+// ================================================================
+//  CAR
+// ================================================================
+const car = {
+  x: WORLD_W / 2, y: WORLD_H / 2,
+  angle: 0,
+  vx: 0, vy: 0,
+  speed: 0,
+  driftAngle: 0,
+  gear: 0,
+  rpm: 0,
+  nitro: NITRO_MAX,
+  turbo: 0,       // 0-100 built by drifting
+  damage: 0,
+  tireHeat: [0,0,0,0], // FL FR RL RR
+  isDrifting: false,
+  bodyRoll: 0,
+  gx: 0, gy: 0,  // g-force
+  prevVx: 0, prevVy: 0,
+  lapStart: 0,
+  lapBest: null,
+  lapCount: 0,
+};
+
+// ================================================================
+//  SCORING
+// ================================================================
+const score = {
+  current: 0,    // current drift run
+  session: 0,
+  bestRun: 0,
+  combo: 1,
+  bestCombo: 1,
+  driftTime: 0,  // continuous drift seconds
+  totalDrifts: 0,
+  maxSpeed: 0,
+  powerups: 0,
+  comboThresholds: [3,5,10,20,30,60], // seconds for combo ×2,3,4,5,6,7
+};
+
+// ================================================================
+//  PARTICLES
+// ================================================================
+const particles = [];
+function addSmoke(x, y, intensity, heat) {
+  const count = Math.floor(intensity * 2);
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 30 + 10;
+    // heat 0=white, 0.5=grey, 1=black
+    const g = Math.floor(255 - heat * 200);
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1, maxLife: 0.6 + Math.random() * 0.6,
+      size: 6 + Math.random() * 14,
+      color: `rgba(${g},${g},${g},`,
+      type: 'smoke',
+    });
+  }
+}
+
+function addNitroParticle(x, y, angle) {
+  for (let i = 0; i < 3; i++) {
+    const spread = (Math.random() - 0.5) * 0.5;
+    const spd = Math.random() * 80 + 40;
+    const blueShift = Math.floor(Math.random() * 255);
+    particles.push({
+      x, y,
+      vx: -Math.cos(angle + spread) * spd,
+      vy: -Math.sin(angle + spread) * spd,
+      life: 1, maxLife: 0.3 + Math.random() * 0.2,
+      size: 4 + Math.random() * 6,
+      color: `rgba(${Math.floor(blueShift/3)},${blueShift},255,`,
+      type: 'nitro',
+    });
+  }
+}
+
+function addSparkle(x, y) {
+  for (let i = 0; i < 8; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const spd = Math.random() * 120 + 60;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * spd,
+      vy: Math.sin(angle) * spd,
+      life: 1, maxLife: 0.4 + Math.random() * 0.3,
+      size: 2 + Math.random() * 4,
+      color: `rgba(255,${Math.floor(Math.random()*155+100)},0,`,
+      type: 'spark',
+    });
+  }
+}
+
+function addExplosion(x, y, r, g, b) {
+  for (let i = 0; i < 20; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const spd = Math.random() * 200 + 100;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * spd,
+      vy: Math.sin(angle) * spd,
+      life: 1, maxLife: 0.5 + Math.random() * 0.4,
+      size: 5 + Math.random() * 12,
+      color: `rgba(${r},${g},${b},`,
+      type: 'spark',
+    });
+  }
+}
+
+// ================================================================
+//  SKID MARKS
+// ================================================================
+const skidMarks = [];
+let skidBuffer = null; // offscreen canvas for skid marks
+
+function initSkidBuffer() {
+  skidBuffer = document.createElement('canvas');
+  skidBuffer.width = WORLD_W;
+  skidBuffer.height = WORLD_H;
+  const sctx = skidBuffer.getContext('2d');
+  sctx.fillStyle = 'transparent';
+}
+
+function drawSkid(x, y, angle, width, alpha) {
+  if (!skidBuffer) return;
+  const sctx = skidBuffer.getContext('2d');
+  const hw = width / 2;
+  // Draw two tire tracks
+  const offsets = [[-hw, 0], [hw, 0]]; // left right of rear
+  const cos = Math.cos(angle + Math.PI/2);
+  const sin = Math.sin(angle + Math.PI/2);
+  for (const [ox, oy] of offsets) {
+    const tx = x + ox * cos - oy * sin;
+    const ty = y + ox * sin + oy * cos;
+    sctx.beginPath();
+    sctx.arc(tx, ty, 3.5, 0, Math.PI * 2);
+    sctx.fillStyle = `rgba(10,10,10,${alpha * 0.4})`;
+    sctx.fill();
+  }
+}
+
+// ================================================================
+//  CONES & OBSTACLES
+// ================================================================
+const cones = [];
+function initCones() {
+  // Inner ring
+  const rings = [
+    { r: 400, count: 12 },
+    { r: 700, count: 18 },
+    { r: 1100, count: 24 },
+    { r: 1450, count: 10 },
+  ];
+  for (const { r, count } of rings) {
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + Math.random() * 0.2;
+      cones.push({
+        x: WORLD_W/2 + Math.cos(a) * r + (Math.random()-0.5)*60,
+        y: WORLD_H/2 + Math.sin(a) * r + (Math.random()-0.5)*60,
+        hit: false, hitTimer: 0,
+      });
+    }
+  }
+}
+
+// ================================================================
+//  DRIFT ZONES (multiplier areas)
+// ================================================================
+const driftZones = [
+  { x: WORLD_W/2 - 600, y: WORLD_H/2 - 600, w: 300, h: 300, multiplier: 2 },
+  { x: WORLD_W/2 + 300, y: WORLD_H/2 - 400, w: 250, h: 250, multiplier: 2 },
+  { x: WORLD_W/2 - 200, y: WORLD_H/2 + 500, w: 350, h: 200, multiplier: 3 },
+  { x: WORLD_W/2 + 500, y: WORLD_H/2 + 300, w: 200, h: 300, multiplier: 2 },
+];
+let inDriftZone = false;
+let driftZoneMultiplier = 1;
+
+// ================================================================
+//  POWERUPS (nitro pickups)
+// ================================================================
+const powerups = [];
+function initPowerups() {
+  const positions = [
+    [-800,-800], [800,-800], [-800,800], [800,800],
+    [0,-1000], [0,1000], [-1000,0], [1000,0],
+    [-400,-200], [400,200], [-200,400], [300,-400],
+  ];
+  for (const [ox, oy] of positions) {
+    powerups.push({
+      x: WORLD_W/2 + ox, y: WORLD_H/2 + oy,
+      type: Math.random() < 0.6 ? 'nitro' : 'turbo',
+      collected: false, respawn: 0,
+      pulse: Math.random() * Math.PI * 2,
+    });
+  }
+}
+
+// ================================================================
+//  CHECKPOINTS (for lap timing)
+// ================================================================
+const checkpoints = [
+  { x: WORLD_W/2, y: WORLD_H/2 - 200, w: 200, h: 20, passed: false },
+  { x: WORLD_W/2 + 500, y: WORLD_H/2, w: 20, h: 200, passed: false },
+  { x: WORLD_W/2, y: WORLD_H/2 + 500, w: 200, h: 20, passed: false },
+  { x: WORLD_W/2 - 500, y: WORLD_H/2, w: 20, h: 200, passed: false },
+];
+let startGate = { x: WORLD_W/2, y: WORLD_H/2 + 100, w: 200, h: 20 };
+
+// ================================================================
+//  CAMERA
+// ================================================================
+const cam = { x: 0, y: 0, zoom: 1 };
+
+function updateCamera() {
+  const lookahead = 120;
+  const targetX = car.x + Math.cos(car.angle) * lookahead - canvas.width/2;
+  const targetY = car.y + Math.sin(car.angle) * lookahead - canvas.height/2;
+  cam.x += (targetX - cam.x) * 0.08;
+  cam.y += (targetY - cam.y) * 0.08;
+
+  // Clamp
+  cam.x = Math.max(0, Math.min(WORLD_W - canvas.width, cam.x));
+  cam.y = Math.max(0, Math.min(WORLD_H - canvas.height, cam.y));
+
+  // Speed-based zoom
+  const targetZoom = 1 - (car.speed / MAX_SPEED) * 0.2;
+  cam.zoom += (targetZoom - cam.zoom) * 0.05;
+}
+
+// Screen shake
+let shakeAmount = 0;
+let shakeDx = 0, shakeDy = 0;
+function shake(amount) { shakeAmount = Math.max(shakeAmount, amount); }
+
+// ================================================================
+//  AUDIO ENGINE
+// ================================================================
+let audioCtx, engineOsc, engineGain, engineOsc2, driftNoise, noiseGain;
+
+function initAudio() {
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Engine oscillator
+    engineOsc = audioCtx.createOscillator();
+    engineOsc.type = 'sawtooth';
+    engineOsc.frequency.value = 80;
+
+    engineOsc2 = audioCtx.createOscillator();
+    engineOsc2.type = 'square';
+    engineOsc2.frequency.value = 160;
+
+    engineGain = audioCtx.createGain();
+    engineGain.gain.value = 0.04;
+
+    const dist = audioCtx.createWaveShaper();
+    const curve = new Float32Array(256);
+    for (let i = 0; i < 256; i++) {
+      const x = i * 2/256 - 1;
+      curve[i] = (3 + 200) * x * 20 * Math.PI / 180 / (Math.PI + 200 * Math.abs(x));
+    }
+    dist.curve = curve;
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 800;
+
+    engineOsc.connect(dist);
+    engineOsc2.connect(dist);
+    dist.connect(filter);
+    filter.connect(engineGain);
+    engineGain.connect(audioCtx.destination);
+    engineOsc.start();
+    engineOsc2.start();
+
+    // Drift noise (filtered noise)
+    const bufferSize = audioCtx.sampleRate * 0.5;
+    const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    driftNoise = audioCtx.createBufferSource();
+    driftNoise.buffer = noiseBuffer;
+    driftNoise.loop = true;
+
+    const noiseFilter = audioCtx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.value = 600;
+    noiseFilter.Q.value = 1.5;
+
+    noiseGain = audioCtx.createGain();
+    noiseGain.gain.value = 0;
+
+    driftNoise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(audioCtx.destination);
+    driftNoise.start();
+  } catch(e) { console.log('Audio failed:', e); }
+}
+
+function updateAudio() {
+  if (!audioCtx) return;
+  const spd = car.speed / MAX_SPEED;
+  const rpm = car.rpm / 8000;
+  const baseFreq = 60 + rpm * 180;
+  engineOsc.frequency.setTargetAtTime(baseFreq, audioCtx.currentTime, 0.05);
+  engineOsc2.frequency.setTargetAtTime(baseFreq * 2.01, audioCtx.currentTime, 0.05);
+  engineGain.gain.setTargetAtTime(0.025 + spd * 0.04, audioCtx.currentTime, 0.05);
+
+  const driftVol = car.isDrifting ? car.driftAngle / Math.PI * 0.12 : 0;
+  noiseGain.gain.setTargetAtTime(driftVol, audioCtx.currentTime, 0.05);
+}
+
+// ================================================================
+//  NOTIFICATION SYSTEM
+// ================================================================
+let notifyTimeout = null;
+function notify(text, sub, color = '#ffcc00') {
+  const el = document.getElementById('notify');
+  const te = document.getElementById('notifyText');
+  const se = document.getElementById('notifySub');
+  te.textContent = text;
+  te.style.color = color;
+  te.style.textShadow = `0 0 30px ${color}`;
+  se.textContent = sub;
+  el.style.opacity = '1';
+  clearTimeout(notifyTimeout);
+  notifyTimeout = setTimeout(() => { el.style.opacity = '0'; }, 2000);
+}
+
+// ================================================================
+//  DRAW TRACK / ARENA
+// ================================================================
+function drawArena(ctx) {
+  // Background (asphalt)
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+
+  // Asphalt texture lines
+  ctx.strokeStyle = '#1f1f1f';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < WORLD_W; i += 80) {
+    ctx.beginPath();
+    ctx.moveTo(i, 0);
+    ctx.lineTo(i, WORLD_H);
+    ctx.stroke();
+  }
+  for (let j = 0; j < WORLD_H; j += 80) {
+    ctx.beginPath();
+    ctx.moveTo(0, j);
+    ctx.lineTo(WORLD_W, j);
+    ctx.stroke();
+  }
+
+  // Drift zones
+  for (const z of driftZones) {
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = z.multiplier >= 3 ? '#ff0000' : '#ff6600';
+    ctx.fillRect(z.x, z.y, z.w, z.h);
+    ctx.globalAlpha = 0.6;
+    ctx.strokeStyle = z.multiplier >= 3 ? '#ff0000' : '#ff6600';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 10]);
+    ctx.strokeRect(z.x, z.y, z.w, z.h);
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = z.multiplier >= 3 ? '#ff0000' : '#ff6600';
+    ctx.font = 'bold 16px Orbitron';
+    ctx.textAlign = 'center';
+    ctx.fillText(`×${z.multiplier}`, z.x + z.w/2, z.y + z.h/2 + 6);
+    ctx.restore();
+  }
+
+  // Start/finish line
+  drawCheckerLine(ctx, startGate.x, startGate.y, startGate.w, 12);
+
+  // Walls
+  ctx.fillStyle = '#cc0000';
+  ctx.fillRect(0, 0, WALL_T, WORLD_H);         // left
+  ctx.fillRect(WORLD_W - WALL_T, 0, WALL_T, WORLD_H); // right
+  ctx.fillRect(0, 0, WORLD_W, WALL_T);          // top
+  ctx.fillRect(0, WORLD_H - WALL_T, WORLD_W, WALL_T); // bottom
+
+  // Wall texture
+  ctx.strokeStyle = '#ff3300';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < WORLD_H; i += 60) {
+    ctx.fillStyle = i % 120 < 60 ? '#cc0000' : '#880000';
+    ctx.fillRect(0, i, WALL_T, 60);
+    ctx.fillRect(WORLD_W - WALL_T, i, WALL_T, 60);
+  }
+  for (let i = 0; i < WORLD_W; i += 60) {
+    ctx.fillStyle = i % 120 < 60 ? '#cc0000' : '#880000';
+    ctx.fillRect(i, 0, 60, WALL_T);
+    ctx.fillRect(i, WORLD_H - WALL_T, 60, WALL_T);
+  }
+}
+
+function drawCheckerLine(ctx, x, y, w, h) {
+  const sqSize = 16;
+  const cols = Math.ceil(w / sqSize);
+  for (let i = 0; i < cols; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#fff' : '#000';
+    ctx.fillRect(x + i * sqSize - w/2, y - h/2, sqSize, h);
+  }
+}
+
+// ================================================================
+//  DRAW FERRARI F1 CAR (top-down)
+// ================================================================
+function drawFerrariCar(ctx, roll) {
+  ctx.save();
+  ctx.rotate(roll * 0.04);
+
+  // Shadow
+  ctx.save();
+  ctx.translate(4, 6);
+  ctx.globalAlpha = 0.3;
+  drawCarShape(ctx, '#000', true);
+  ctx.restore();
+
+  // Car body glow when drifting
+  if (car.isDrifting) {
+    ctx.shadowColor = '#ff3300';
+    ctx.shadowBlur = 20 + Math.sin(Date.now()/100) * 5;
+  }
+
+  drawCarShape(ctx, '#CC0000', false);
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+function drawCarShape(ctx, mainColor, isShadow) {
+  const alpha = isShadow ? 1 : 1;
+
+  // Rear wing endplates
+  ctx.fillStyle = isShadow ? '#000' : '#880000';
+  ctx.fillRect(-38, -22, 8, 7);
+  ctx.fillRect(-38, 15, 8, 7);
+
+  // Rear wing main plate
+  ctx.fillStyle = isShadow ? '#000' : '#fff';
+  ctx.fillRect(-40, -20, 14, 40);
+  ctx.fillStyle = isShadow ? '#000' : '#CC0000';
+  ctx.fillRect(-40, -20, 14, 19);
+  ctx.fillStyle = isShadow ? '#000' : '#fff';
+  ctx.fillRect(-40, -1, 14, 2);
+
+  // Rear diffuser
+  ctx.fillStyle = isShadow ? '#000' : '#333';
+  ctx.beginPath();
+  ctx.moveTo(-38, -12);
+  ctx.lineTo(-42, -14);
+  ctx.lineTo(-42, 14);
+  ctx.lineTo(-38, 12);
+  ctx.fill();
+
+  // Main body
+  ctx.fillStyle = mainColor;
+  ctx.beginPath();
+  ctx.moveTo(-38, -12);
+  ctx.lineTo(28, -13);
+  ctx.lineTo(42, -7);
+  ctx.lineTo(52, 0);
+  ctx.lineTo(42, 7);
+  ctx.lineTo(28, 13);
+  ctx.lineTo(-38, 12);
+  ctx.closePath();
+  ctx.fill();
+
+  // Sidepods
+  ctx.fillStyle = isShadow ? '#000' : '#AA0000';
+  ctx.fillRect(-15, -16, 30, 5);
+  ctx.fillRect(-15, 11, 30, 5);
+
+  // Front wing
+  ctx.fillStyle = isShadow ? '#000' : '#111';
+  ctx.beginPath();
+  ctx.moveTo(30, -9);
+  ctx.lineTo(55, -18);
+  ctx.lineTo(58, -14);
+  ctx.lineTo(35, -7);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(30, 9);
+  ctx.lineTo(55, 18);
+  ctx.lineTo(58, 14);
+  ctx.lineTo(35, 7);
+  ctx.fill();
+
+  // Front wing center
+  ctx.fillStyle = isShadow ? '#000' : '#CC0000';
+  ctx.fillRect(40, -4, 14, 8);
+
+  // Cockpit
+  ctx.fillStyle = isShadow ? '#000' : '#111';
+  ctx.beginPath();
+  ctx.ellipse(2, 0, 16, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Halo
+  ctx.fillStyle = isShadow ? '#000' : '#888';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-2, -5);
+  ctx.quadraticCurveTo(8, -12, 18, -5);
+  ctx.stroke = function(){};
+  // Actually draw as rect
+  ctx.fillRect(-2, -8, 20, 2);
+  ctx.fillRect(5, -8, 3, 8);
+
+  // Helmet
+  if (!isShadow) {
+    ctx.fillStyle = '#FF4400';
+    ctx.beginPath();
+    ctx.ellipse(2, 0, 6, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#0022ff';
+    ctx.fillRect(-1, -2, 6, 1);
+  }
+
+  // Wheels
+  const wheelPositions = [
+    [14, -17, true], [14, 17, true],     // front
+    [-18, -17, false], [-18, 17, false], // rear
+  ];
+
+  for (const [wx, wy, isFront] of wheelPositions) {
+    // Tire
+    ctx.fillStyle = isShadow ? '#000' : '#111';
+    ctx.beginPath();
+    if (isFront) {
+      ctx.fillRect(wx - 5, wy - 3, 14, 6);
+    } else {
+      ctx.fillRect(wx - 5, wy - 4, 14, 8);
+    }
+
+    if (!isShadow) {
+      // Rim
+      ctx.fillStyle = '#555';
+      ctx.beginPath();
+      if (isFront) ctx.ellipse(wx + 2, wy, 4, 3, 0, 0, Math.PI * 2);
+      else ctx.ellipse(wx + 2, wy, 5, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ferrari logo on nose
+      if (wx === 14 && wy === -17) {
+        ctx.fillStyle = '#ffcc00';
+        ctx.font = 'bold 7px Orbitron';
+        ctx.textAlign = 'center';
+        ctx.fillText('16', 2, 2);
+      }
+    }
+  }
+
+  // Number on car nose
+  if (!isShadow) {
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 8px Orbitron';
+    ctx.textAlign = 'center';
+    ctx.fillText('16', 30, 3);
+  }
+}
+
+// ================================================================
+//  DRAW CONES
+// ================================================================
+function drawCones(ctx, t) {
+  for (const cone of cones) {
+    ctx.save();
+    ctx.translate(cone.x, cone.y);
+
+    if (cone.hit) {
+      ctx.rotate(cone.hitTimer * 5);
+      ctx.translate(cone.hitTimer * 15, 0);
+    }
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(3, 4, 10, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cone body
+    ctx.fillStyle = '#FF6600';
+    ctx.beginPath();
+    ctx.moveTo(0, -14);
+    ctx.lineTo(9, 8);
+    ctx.lineTo(-9, 8);
+    ctx.closePath();
+    ctx.fill();
+
+    // White stripe
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.moveTo(-5, 0);
+    ctx.lineTo(5, 0);
+    ctx.lineTo(4, 5);
+    ctx.lineTo(-4, 5);
+    ctx.closePath();
+    ctx.fill();
+
+    // Top
+    ctx.fillStyle = '#FF8800';
+    ctx.beginPath();
+    ctx.arc(0, -14, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+}
+
+// ================================================================
+//  DRAW POWERUPS
+// ================================================================
+function drawPowerups(ctx, t) {
+  for (const p of powerups) {
+    if (p.collected) continue;
+    p.pulse += 0.05;
+    const glow = Math.sin(p.pulse) * 0.3 + 0.7;
+    const bob = Math.sin(p.pulse * 1.3) * 4;
+
+    ctx.save();
+    ctx.translate(p.x, p.y + bob);
+
+    if (p.type === 'nitro') {
+      // Blue nitro orb
+      const grad = ctx.createRadialGradient(0, 0, 2, 0, 0, 18);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.4, '#0099ff');
+      grad.addColorStop(1, 'rgba(0,0,255,0)');
+      ctx.fillStyle = grad;
+      ctx.globalAlpha = glow;
+      ctx.beginPath();
+      ctx.arc(0, 0, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 10px Orbitron';
+      ctx.textAlign = 'center';
+      ctx.fillText('N', 0, 4);
+    } else {
+      // Orange turbo orb
+      const grad = ctx.createRadialGradient(0, 0, 2, 0, 0, 18);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.4, '#ff9900');
+      grad.addColorStop(1, 'rgba(255,100,0,0)');
+      ctx.fillStyle = grad;
+      ctx.globalAlpha = glow;
+      ctx.beginPath();
+      ctx.arc(0, 0, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 10px Orbitron';
+      ctx.textAlign = 'center';
+      ctx.fillText('T', 0, 4);
+    }
+
+    ctx.restore();
+  }
+}
+
+// ================================================================
+//  PHYSICS UPDATE
+// ================================================================
+function updatePhysics(dt) {
+  const throttle = (keys['KeyW'] || keys['ArrowUp']) ? 1 :
+                   (keys['KeyS'] || keys['ArrowDown']) ? -1 : 0;
+  const steer = (keys['KeyD'] || keys['ArrowRight']) ? 1 :
+                (keys['KeyA'] || keys['ArrowLeft']) ? -1 : 0;
+  const drifting = keys['Space'];
+  const nitroKey = keys['ShiftLeft'] || keys['ShiftRight'] || keys['KeyN'];
+  const usingNitro = nitroKey && car.nitro > 0;
+
+  car.prevVx = car.vx;
+  car.prevVy = car.vy;
+
+  // Gear calculation
+  const gearThresholds = [0, 80, 180, 300, 440, 600, MAX_SPEED];
+  car.gear = gearThresholds.findIndex(t => car.speed < t);
+  if (car.speed < 5) car.gear = 0;
+
+  // RPM simulation
+  const gearMin = gearThresholds[Math.max(0, car.gear - 1)] || 0;
+  const gearMax = gearThresholds[car.gear] || MAX_SPEED;
+  const gearProgress = gearMax > gearMin ? (car.speed - gearMin) / (gearMax - gearMin) : 0;
+  const targetRPM = throttle > 0 ? (2500 + gearProgress * 6000) : (800 + car.speed * 3);
+  car.rpm += (targetRPM - car.rpm) * 0.15;
+
+  // Steering (speed-dependent, less at very low speed)
+  const speedFactor = Math.min(car.speed / 150, 1);
+  const driftTurnBonus = drifting && car.speed > 100 ? 1.4 : 1;
+  car.angle += TURN_SPEED * speedFactor * steer * driftTurnBonus * dt;
+
+  // Body roll
+  car.bodyRoll += (steer * speedFactor * 3 - car.bodyRoll) * 0.2;
+
+  // Nitro
+  if (usingNitro) {
+    car.nitro = Math.max(0, car.nitro - NITRO_DRAIN * dt);
+    addNitroParticle(
+      car.x - Math.cos(car.angle) * 40,
+      car.y - Math.sin(car.angle) * 40,
+      car.angle
+    );
+    shake(1);
+  } else {
+    car.nitro = Math.min(NITRO_MAX, car.nitro + NITRO_REGEN * dt);
+  }
+
+  // Thrust
+  const boostMult = usingNitro ? NITRO_BOOST : 1;
+  const turboBonusMult = car.turbo > 50 ? 1.15 : 1;
+  if (throttle > 0) {
+    car.vx += Math.cos(car.angle) * ACCEL * boostMult * turboBonusMult * dt;
+    car.vy += Math.sin(car.angle) * ACCEL * boostMult * turboBonusMult * dt;
+  } else if (throttle < 0) {
+    const brakeMag = Math.sqrt(car.vx**2 + car.vy**2);
+    if (brakeMag > 1) {
+      car.vx -= (car.vx / brakeMag) * BRAKE * dt;
+      car.vy -= (car.vy / brakeMag) * BRAKE * dt;
+    }
+  }
+
+  // Decompose into longitudinal/lateral
+  const cosA = Math.cos(car.angle);
+  const sinA = Math.sin(car.angle);
+  const vLong = car.vx * cosA + car.vy * sinA;
+  let vLat = -car.vx * sinA + car.vy * cosA;
+
+  // Lateral friction (grip vs drift)
+  const latFric = drifting ? LAT_FRICTION_DRIFT : LAT_FRICTION_GRIP;
+  vLat *= (1 - (1 - latFric) * (1 + Math.abs(vLat) / 200));
+
+  // Reconstruct
+  car.vx = cosA * vLong - sinA * vLat;
+  car.vy = sinA * vLong + cosA * vLat;
+
+  // Longitudinal friction when not accelerating
+  if (throttle === 0) {
+    car.vx *= Math.pow(LONG_FRICTION, dt * 60);
+    car.vy *= Math.pow(LONG_FRICTION, dt * 60);
+  }
+
+  // Speed cap
+  const maxSpd = MAX_SPEED * boostMult;
+  car.speed = Math.sqrt(car.vx**2 + car.vy**2);
+  if (car.speed > maxSpd) {
+    car.vx = (car.vx / car.speed) * maxSpd;
+    car.vy = (car.vy / car.speed) * maxSpd;
+    car.speed = maxSpd;
+  }
+
+  // Move
+  car.x += car.vx * dt;
+  car.y += car.vy * dt;
+
+  // G-force
+  car.gx = (car.vx - car.prevVx) / dt / 980;
+  car.gy = (car.vy - car.prevVy) / dt / 980;
+
+  // Wall collision
+  const margin = WALL_T + 22;
+  let wallHit = false;
+  if (car.x < margin) { car.x = margin; car.vx = Math.abs(car.vx) * 0.4; wallHit = true; }
+  if (car.x > WORLD_W - margin) { car.x = WORLD_W - margin; car.vx = -Math.abs(car.vx) * 0.4; wallHit = true; }
+  if (car.y < margin) { car.y = margin; car.vy = Math.abs(car.vy) * 0.4; wallHit = true; }
+  if (car.y > WORLD_H - margin) { car.y = WORLD_H - margin; car.vy = -Math.abs(car.vy) * 0.4; wallHit = true; }
+
+  if (wallHit && car.speed > 150) {
+    const impact = car.speed / MAX_SPEED;
+    car.damage = Math.min(DAMAGE_MAX, car.damage + impact * 20);
+    shake(impact * 12);
+    addExplosion(car.x, car.y, 255, 150, 0);
+    if (car.damage >= 80) notify('CHASSIS CRITICAL!', 'TAKE CARE', '#ff0000');
+  }
+
+  // Drift angle
+  if (car.speed > 40) {
+    const velAngle = Math.atan2(car.vy, car.vx);
+    let diff = velAngle - car.angle;
+    while (diff > Math.PI) diff -= 2 * Math.PI;
+    while (diff < -Math.PI) diff += 2 * Math.PI;
+    car.driftAngle = Math.abs(diff);
+  } else {
+    car.driftAngle = 0;
+  }
+
+  car.isDrifting = drifting && car.speed > 80 && car.driftAngle > 0.1;
+
+  // Tire heat
+  const heatRate = car.isDrifting ? 0.8 : -0.3;
+  for (let i = 0; i < 4; i++) {
+    car.tireHeat[i] = Math.max(0, Math.min(1, car.tireHeat[i] + heatRate * dt * (i > 1 ? 1.5 : 1)));
+  }
+
+  // Track max speed
+  const kph = car.speed * KMH;
+  if (kph > score.maxSpeed) score.maxSpeed = kph;
+}
+
+// ================================================================
+//  DRIFT SCORING
+// ================================================================
+function updateScoring(dt) {
+  if (car.isDrifting && car.driftAngle > 0.15 && car.speed > 80) {
+    // Drift zone multiplier
+    inDriftZone = false;
+    driftZoneMultiplier = 1;
+    for (const z of driftZones) {
+      if (car.x > z.x && car.x < z.x + z.w && car.y > z.y && car.y < z.y + z.h) {
+        inDriftZone = true;
+        driftZoneMultiplier = z.multiplier;
+      }
+    }
+
+    // Points per second
+    const angleBonus = car.driftAngle / (Math.PI / 2);
+    const speedBonus = car.speed / MAX_SPEED;
+    const pts = angleBonus * speedBonus * 500 * score.combo * driftZoneMultiplier * dt;
+    score.current += pts;
+    score.session += pts;
+
+    score.driftTime += dt;
+
+    // Combo milestones (based on drift duration)
+    const newCombo = Math.min(10, 1 + Math.floor(score.driftTime / 3));
+    if (newCombo > score.combo) {
+      score.combo = newCombo;
+      if (score.combo > score.bestCombo) score.bestCombo = score.combo;
+      notify(`×${score.combo} COMBO!`, 'DRIFT MULTIPLIER', '#ff9900');
+      addExplosion(car.x, car.y, 255, 153, 0);
+      // Flash
+      document.getElementById('comboFlash').style.background = 'rgba(255,150,0,0.15)';
+      setTimeout(() => document.getElementById('comboFlash').style.background = 'transparent', 100);
+    }
+
+    // Turbo build from drifting
+    car.turbo = Math.min(100, car.turbo + 20 * dt);
+
+    // Smoke
+    if (car.speed > 60) {
+      const rearX = car.x - Math.cos(car.angle) * 25;
+      const rearY = car.y - Math.sin(car.angle) * 25;
+      const heat = (car.tireHeat[2] + car.tireHeat[3]) / 2;
+      addSmoke(rearX - Math.sin(car.angle) * 12, rearY + Math.cos(car.angle) * 12, 1.5, heat);
+      addSmoke(rearX + Math.sin(car.angle) * 12, rearY - Math.cos(car.angle) * 12, 1.5, heat);
+
+      // Skid marks
+      drawSkid(rearX, rearY, car.angle, 20, car.driftAngle / Math.PI);
+    }
+
+  } else if (score.driftTime > 0) {
+    // Drift ended — bank score
+    if (score.current > 50) {
+      const bonus = score.current > 5000 ? '🏆 LEGENDARY' :
+                    score.current > 2000 ? '🔥 SICK DRIFT' :
+                    score.current > 800 ? '✨ GREAT DRIFT' :
+                    '👍 NICE DRIFT';
+      notify(bonus, `+${Math.floor(score.current)} PTS`, '#ffcc00');
+      score.totalDrifts++;
+      if (score.current > score.bestRun) score.bestRun = score.current;
+    }
+    score.current = 0;
+    score.combo = 1;
+    score.driftTime = 0;
+    car.turbo = Math.max(0, car.turbo - 30);
+  }
+}
+
+// ================================================================
+//  CONE COLLISION
+// ================================================================
+function updateCones(dt) {
+  for (const cone of cones) {
+    const dx = car.x - cone.x;
+    const dy = car.y - cone.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 24 && !cone.hit) {
+      cone.hit = true;
+      cone.hitTimer = 0;
+      addSparkle(cone.x, cone.y);
+      shake(3);
+    }
+    if (cone.hit) {
+      cone.hitTimer += dt;
+      if (cone.hitTimer > 2) {
+        cone.hit = false; // reset after 2s
+        cone.x = WORLD_W/2 + (Math.random()-0.5)*1600;
+        cone.y = WORLD_H/2 + (Math.random()-0.5)*1600;
+      }
+    }
+  }
+}
+
+// ================================================================
+//  POWERUP COLLECTION
+// ================================================================
+function updatePowerups(dt, t) {
+  for (const p of powerups) {
+    if (p.collected) {
+      p.respawn -= dt;
+      if (p.respawn <= 0) p.collected = false;
+      continue;
+    }
+    const dx = car.x - p.x;
+    const dy = car.y - p.y;
+    if (Math.sqrt(dx*dx + dy*dy) < 22) {
+      p.collected = true;
+      p.respawn = 12;
+      score.powerups++;
+      if (p.type === 'nitro') {
+        car.nitro = Math.min(NITRO_MAX, car.nitro + 50);
+        notify('⚡ NITRO REFILL!', '+50 NITRO', '#0099ff');
+        addExplosion(p.x, p.y, 0, 150, 255);
+      } else {
+        car.turbo = Math.min(100, car.turbo + 60);
+        notify('🔥 TURBO BOOST!', 'TURBO +60', '#ff9900');
+        addExplosion(p.x, p.y, 255, 120, 0);
+      }
+      shake(5);
+    }
+  }
+}
+
+// ================================================================
+//  UPDATE HUD
+// ================================================================
+function updateHUD() {
+  const kph = Math.floor(car.speed * KMH);
+  document.getElementById('speedNum').textContent = kph;
+  document.getElementById('gearNum').textContent = car.gear === 0 ? 'N' : car.gear;
+  document.getElementById('driftScore').textContent = Math.floor(score.current);
+  document.getElementById('comboX').textContent = `×${score.combo}`;
+  document.getElementById('sessionScore').textContent = Math.floor(score.session);
+  document.getElementById('bestRun').textContent = Math.floor(score.bestRun);
+  document.getElementById('angleDeg').textContent = Math.floor(car.driftAngle * 180 / Math.PI) + '°';
+  document.getElementById('nitroFill').style.width = (car.nitro / NITRO_MAX * 100) + '%';
+  document.getElementById('turboFill').style.width = car.turbo + '%';
+  document.getElementById('rpmFill').style.width = (car.rpm / 9000 * 100) + '%';
+  document.getElementById('damageFill').style.width = car.damage + '%';
+  document.getElementById('totalDrifts').textContent = score.totalDrifts;
+  document.getElementById('maxSpeedStat').textContent = Math.floor(score.maxSpeed);
+  document.getElementById('bestCombo').textContent = `×${score.bestCombo}`;
+  document.getElementById('powerupsCount').textContent = score.powerups;
+  document.getElementById('zoneAlert').style.opacity = inDriftZone ? '1' : '0';
+
+  // Lap time
+  if (gameRunning) {
+    const elapsed = (Date.now() - car.lapStart) / 1000;
+    const m = Math.floor(elapsed / 60);
+    const s = (elapsed % 60).toFixed(1).padStart(4, '0');
+    document.getElementById('lapTime').textContent = `${m}:${s}`;
+  }
+
+  if (car.lapBest !== null) {
+    const m = Math.floor(car.lapBest / 60);
+    const s = (car.lapBest % 60).toFixed(1).padStart(4, '0');
+    document.getElementById('lapBest').textContent = `BEST ${m}:${s}`;
+  }
+
+  // Tire heat colors
+  const tireIds = ['tfl','tfr','trl','trr'];
+  for (let i = 0; i < 4; i++) {
+    const h = car.tireHeat[i];
+    const r = Math.floor(h * 255);
+    const g = Math.floor((1 - h) * 200);
+    document.getElementById(tireIds[i]).style.background = `rgb(${r},${g},20)`;
+  }
+
+  // Score color based on drift
+  const scoreEl = document.getElementById('driftScore');
+  if (car.isDrifting) {
+    const hue = (Date.now() / 20) % 360;
+    scoreEl.style.textShadow = `0 0 30px hsl(${hue},100%,50%), 0 0 60px hsl(${hue},100%,50%,0.4)`;
+  } else {
+    scoreEl.style.textShadow = '0 0 30px #ff3300, 0 0 60px #ff330066';
+  }
+}
+
+// ================================================================
+//  G-FORCE DISPLAY
+// ================================================================
+function drawGForce() {
+  const gCanvas = document.getElementById('gforceCanvas');
+  const gCtx = gCanvas.getContext('2d');
+  gCtx.clearRect(0, 0, 60, 60);
+
+  // Background circle
+  gCtx.beginPath();
+  gCtx.arc(30, 30, 28, 0, Math.PI * 2);
+  gCtx.strokeStyle = '#333';
+  gCtx.lineWidth = 1;
+  gCtx.stroke();
+  gCtx.fillStyle = 'rgba(0,0,0,0.5)';
+  gCtx.fill();
+
+  // Crosshair
+  gCtx.strokeStyle = '#333';
+  gCtx.lineWidth = 0.5;
+  gCtx.beginPath();
+  gCtx.moveTo(30, 2); gCtx.lineTo(30, 58);
+  gCtx.moveTo(2, 30); gCtx.lineTo(58, 30);
+  gCtx.stroke();
+
+  // G dot
+  const gx = Math.max(-1, Math.min(1, car.gx));
+  const gy = Math.max(-1, Math.min(1, car.gy));
+  const dotX = 30 + gx * 22;
+  const dotY = 30 + gy * 22;
+
+  const gMag = Math.sqrt(gx*gx + gy*gy);
+  const dotColor = gMag > 0.7 ? '#ff3300' : gMag > 0.4 ? '#ff9900' : '#00ff44';
+
+  gCtx.beginPath();
+  gCtx.arc(dotX, dotY, 5, 0, Math.PI * 2);
+  gCtx.fillStyle = dotColor;
+  gCtx.shadowColor = dotColor;
+  gCtx.shadowBlur = 8;
+  gCtx.fill();
+  gCtx.shadowBlur = 0;
+}
+
+// ================================================================
+//  MINI MAP
+// ================================================================
+function drawMinimap() {
+  const mc = document.getElementById('minimapCanvas');
+  const mctx = mc.getContext('2d');
+  mctx.clearRect(0, 0, 140, 140);
+
+  const sx = 140 / WORLD_W;
+  const sy = 140 / WORLD_H;
+
+  // Arena background
+  mctx.fillStyle = '#111';
+  mctx.fillRect(0, 0, 140, 140);
+
+  // Walls
+  mctx.fillStyle = '#cc0000';
+  mctx.fillRect(0, 0, WALL_T*sx, 140);
+  mctx.fillRect(140 - WALL_T*sx, 0, WALL_T*sx, 140);
+  mctx.fillRect(0, 0, 140, WALL_T*sy);
+  mctx.fillRect(0, 140 - WALL_T*sy, 140, WALL_T*sy);
+
+  // Drift zones
+  mctx.fillStyle = 'rgba(255,100,0,0.3)';
+  for (const z of driftZones) {
+    mctx.fillRect(z.x*sx, z.y*sy, z.w*sx, z.h*sy);
+  }
+
+  // Powerups
+  for (const p of powerups) {
+    if (p.collected) continue;
+    mctx.fillStyle = p.type === 'nitro' ? '#0099ff' : '#ff9900';
+    mctx.beginPath();
+    mctx.arc(p.x*sx, p.y*sy, 2, 0, Math.PI*2);
+    mctx.fill();
+  }
+
+  // Cones
+  mctx.fillStyle = '#ff6600';
+  for (const c of cones) {
+    mctx.fillRect(c.x*sx - 1, c.y*sy - 1, 2, 2);
+  }
+
+  // Car position
+  const cx = car.x * sx, cy = car.y * sy;
+  mctx.save();
+  mctx.translate(cx, cy);
+  mctx.rotate(car.angle);
+  mctx.fillStyle = '#CC0000';
+  mctx.fillRect(-3, -2, 8, 4);
+  mctx.restore();
+
+  // Border
+  mctx.strokeStyle = '#ff330044';
+  mctx.lineWidth = 1;
+  mctx.strokeRect(0, 0, 140, 140);
+}
+
+// ================================================================
+//  PARTICLES UPDATE & DRAW
+// ================================================================
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vx *= 0.97;
+    p.vy *= 0.97;
+    p.life -= dt / p.maxLife;
+
+    if (p.type === 'smoke') {
+      p.size += dt * 15;
+    }
+
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function drawParticles(ctx) {
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life * 0.8);
+    ctx.fillStyle = p.color + (p.life * 0.8) + ')';
+    if (p.type === 'smoke') {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ================================================================
+//  MAIN GAME LOOP
+// ================================================================
+function gameLoop(ts) {
+  if (!gameRunning) return;
+
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+
+  // Shake decay
+  shakeAmount *= 0.85;
+  shakeDx = (Math.random() - 0.5) * shakeAmount;
+  shakeDy = (Math.random() - 0.5) * shakeAmount;
+
+  // Reset key
+  if (keys['KeyR']) resetCar();
+
+  updatePhysics(dt);
+  updateScoring(dt);
+  updateCones(dt);
+  updatePowerups(dt, ts);
+  updateCamera();
+  updateParticles(dt);
+  updateAudio();
+  updateHUD();
+  drawGForce();
+  drawMinimap();
+
+  // RENDER
+  ctx.save();
+  ctx.translate(shakeDx, shakeDy);
+
+  // Camera transform
+  const cx = canvas.width/2, cy = canvas.height/2;
+  const zx = cam.x + cx;
+  const zy = cam.y + cy;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(cam.zoom, cam.zoom);
+  ctx.translate(-zx, -zy);
+
+  // Draw world
+  drawArena(ctx);
+
+  // Skid marks
+  if (skidBuffer) {
+    ctx.globalAlpha = 0.9;
+    ctx.drawImage(skidBuffer, 0, 0);
+    ctx.globalAlpha = 1;
+  }
+
+  drawCones(ctx, ts);
+  drawPowerups(ctx, ts);
+  drawParticles(ctx);
+
+  // Draw car
+  ctx.save();
+  ctx.translate(car.x, car.y);
+  ctx.rotate(car.angle);
+  drawFerrariCar(ctx, car.bodyRoll);
+  ctx.restore();
+
+  ctx.restore(); // camera
+  ctx.restore(); // shake
+
+  // Speed lines effect when fast
+  if (car.speed > 600) {
+    const alpha = (car.speed - 600) / MAX_SPEED * 0.15;
+    const grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 100,
+                                          canvas.width/2, canvas.height/2, canvas.width/2);
+    grad.addColorStop(0, 'transparent');
+    grad.addColorStop(1, `rgba(200,100,0,${alpha})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+// ================================================================
+//  INIT & START
+// ================================================================
+function resetCar() {
+  car.x = WORLD_W / 2;
+  car.y = WORLD_H / 2;
+  car.angle = 0;
+  car.vx = 0; car.vy = 0;
+  car.speed = 0;
+  car.damage = 0;
+  car.nitro = NITRO_MAX;
+  car.turbo = 0;
+  car.tireHeat = [0,0,0,0];
+  car.lapStart = Date.now();
+  score.current = 0;
+  score.combo = 1;
+  score.driftTime = 0;
+}
+
+function startGame() {
+  document.getElementById('startScreen').style.display = 'none';
+  initAudio();
+  initSkidBuffer();
+  initCones();
+  initPowerups();
+  car.lapStart = Date.now();
+  gameRunning = true;
+  lastTime = performance.now();
+  requestAnimationFrame(gameLoop);
+}
+
+// Keyboard to also start
+window.addEventListener('keydown', e => {
+  if (e.code === 'Enter' || e.code === 'Space') {
+    const ss = document.getElementById('startScreen');
+    if (ss.style.display !== 'none') { startGame(); }
+  }
+});
+</script>
+</body>
+</html>
